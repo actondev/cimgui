@@ -5,13 +5,17 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const imgui = b.addStaticLibrary(.{
-        .name = "imgui",
+    const cimgui = b.addStaticLibrary(.{
+        .name = "cimgui",
         .target = target,
         .optimize = optimize,
     });
-    imgui.addIncludePath(.{ .path = "." });
-    imgui.linkLibCpp();
+    b.installArtifact(cimgui);
+    cimgui.addIncludePath(.{ .path = "." });
+    cimgui.addIncludePath(.{ .path = "imgui" });
+    // cimgui.installHeadersDirectory("imgui", ".");
+    // cimgui.installHeadersDirectory("generator/output", ".");
+    cimgui.linkLibCpp();
 
     const imgui_flags = &[_][]const u8{};
 
@@ -23,7 +27,22 @@ pub fn build(b: *std.Build) void {
         "imgui/imgui_tables.cpp",
         "imgui/imgui_widgets.cpp",
     };
-    imgui.addCSourceFiles(imgui_src, imgui_flags);
+
+    const SDL2 = b.dependency("SDL2", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    cimgui.addCSourceFiles(imgui_src, imgui_flags);
+    cimgui.defineCMacro("IMGUI_IMPL_API", "extern \"C\" ");
+
+    if (b.option(bool, "sdl", "use sdl backend") orelse true) {
+        cimgui.addCSourceFile(.{ .file = .{ .path = "imgui/backends/imgui_impl_sdl2.cpp" }, .flags = imgui_flags });
+        cimgui.linkLibrary(SDL2.artifact("SDL2"));
+    }
+    if (b.option(bool, "opengl", "use opengl backend") orelse true) {
+        cimgui.addCSourceFile(.{ .file = .{ .path = "imgui/backends/imgui_impl_opengl3.cpp" }, .flags = imgui_flags });
+    }
 
     // examples
     if (b.option(bool, "examples", "Build examples") orelse true) {
@@ -32,20 +51,16 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
         });
-        const SDL2 = b.dependency("SDL2", .{
-            .target = target,
-            .optimize = optimize,
-        });
 
         sdl_exe.linkLibCpp();
         sdl_exe.addIncludePath(.{ .path = "./imgui" });
         sdl_exe.addIncludePath(.{ .path = "./imgui/backends" });
-        sdl_exe.linkLibrary(imgui);
+        sdl_exe.linkLibrary(cimgui);
         sdl_exe.linkLibrary(SDL2.artifact("SDL2"));
 
         // TODO shouldnt' SDl2 add these inlcude dir?
-        const sdl_incl = LazyPath.getPath(.{ .path = "include" }, SDL2.builder);
-        sdl_exe.addIncludePath(.{ .path = sdl_incl });
+        // const sdl_incl = LazyPath.getPath(.{ .path = "include" }, SDL2.builder);
+        // sdl_exe.addIncludePath(.{ .path = sdl_incl });
 
         sdl_exe.addCSourceFiles(&[_][]const u8{
             "imgui/backends/imgui_impl_sdl2.cpp",
