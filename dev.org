@@ -1,0 +1,7 @@
+#+PROPERTY: header-args:sh :session *cimgui-zig*
+
+#+begin_src sh
+zig build --verbose
+zig build -Doptimize=ReleaseFast --verbose
+./zig-out/bin/sdl2_opengl3
+#+end_src

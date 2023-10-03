@@ -1,0 +1,12 @@
+.{
+    .name = "cimgui.zig",
+    .version = "0.0.1",
+    .dependencies = .{
+        .SDL2 = .{
+            // not working with zig 0.11 (needs a one line fix)
+            // .url = "https://github.com/andrewrk/SDL/archive/aef95740310154ebd491bc35e0fdcd118b16ade0.tar.gz",
+            .url = "https://github.com/JacobCrabill/SDL.zig/archive/4f372d95b7df3a528c8c52197f77a9700f3db9a7.tar.gz",
+            .hash = "12205529421b7a78fef4f9b9c938624cb6ea3e0ec910915ca7f351e4457f960c5f91",
+        },
+    },
+}
