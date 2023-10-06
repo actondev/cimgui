@@ -17,7 +17,10 @@ pub fn build(b: *std.Build) void {
     // cimgui.installHeadersDirectory("generator/output", ".");
     cimgui.linkLibCpp();
 
-    const imgui_flags = &[_][]const u8{};
+    const imgui_flags = &[_][]const u8{
+        "-DIMGUI_IMPL_OPENGL_ES2",
+        "-DIMGUI_IMPL_API=extern \"C\" ",
+    };
 
     const imgui_src = &[_][]const u8{
         "cimgui.cpp",
@@ -34,11 +37,18 @@ pub fn build(b: *std.Build) void {
     });
 
     cimgui.addCSourceFiles(imgui_src, imgui_flags);
-    cimgui.defineCMacro("IMGUI_IMPL_API", "extern \"C\" ");
 
     if (b.option(bool, "sdl", "use sdl backend") orelse true) {
         cimgui.addCSourceFile(.{ .file = .{ .path = "imgui/backends/imgui_impl_sdl2.cpp" }, .flags = imgui_flags });
-        cimgui.linkLibrary(SDL2.artifact("SDL2"));
+        if (false) {
+            cimgui.linkLibrary(SDL2.artifact("SDL2"));
+            cimgui.addIncludePath(.{
+                .path = LazyPath.getPath(.{ .path = "include" }, SDL2.builder),
+            });
+        } else {
+            cimgui.linkSystemLibrary("SDL2");
+            cimgui.linkSystemLibrary("GLESv2");
+        }
     }
     if (b.option(bool, "opengl", "use opengl backend") orelse true) {
         cimgui.addCSourceFile(.{ .file = .{ .path = "imgui/backends/imgui_impl_opengl3.cpp" }, .flags = imgui_flags });
@@ -56,17 +66,12 @@ pub fn build(b: *std.Build) void {
         sdl_exe.addIncludePath(.{ .path = "./imgui" });
         sdl_exe.addIncludePath(.{ .path = "./imgui/backends" });
         sdl_exe.linkLibrary(cimgui);
-        sdl_exe.linkLibrary(SDL2.artifact("SDL2"));
 
-        // TODO shouldnt' SDl2 add these inlcude dir?
-        // const sdl_incl = LazyPath.getPath(.{ .path = "include" }, SDL2.builder);
-        // sdl_exe.addIncludePath(.{ .path = sdl_incl });
-
+        sdl_exe.linkSystemLibrary("SDL2");
+        sdl_exe.linkSystemLibrary("GLESv2");
         sdl_exe.addCSourceFiles(&[_][]const u8{
-            "imgui/backends/imgui_impl_sdl2.cpp",
-            "imgui/backends/imgui_impl_opengl3.cpp",
             "imgui/examples/example_sdl2_opengl3/main.cpp",
-        }, &.{});
+        }, imgui_flags);
         b.installArtifact(sdl_exe);
     }
 }
