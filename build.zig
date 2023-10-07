@@ -13,14 +13,19 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(cimgui);
     cimgui.addIncludePath(.{ .path = "." });
     cimgui.addIncludePath(.{ .path = "imgui" });
-    // cimgui.installHeadersDirectory("imgui", ".");
-    // cimgui.installHeadersDirectory("generator/output", ".");
     cimgui.linkLibCpp();
 
-    const imgui_flags = &[_][]const u8{
-        "-DIMGUI_IMPL_OPENGL_ES2",
-        "-DIMGUI_IMPL_API=extern \"C\" ",
-    };
+    const embedded = b.option(bool, "embedded", "Compile for embedded (eg anbernic)") orelse false;
+
+    const imgui_flags = if (embedded)
+        &[_][]const u8{
+            "-DIMGUI_IMPL_OPENGL_ES2",
+            "-DIMGUI_IMPL_API=extern \"C\" ",
+        }
+    else
+        &[_][]const u8{
+            "-DIMGUI_IMPL_API=extern \"C\" ",
+        };
 
     const imgui_src = &[_][]const u8{
         "cimgui.cpp",
@@ -31,23 +36,23 @@ pub fn build(b: *std.Build) void {
         "imgui/imgui_widgets.cpp",
     };
 
-    const SDL2 = b.dependency("SDL2", .{
-        .target = target,
-        .optimize = optimize,
-    });
+    std.debug.print("here embed: {}\n", .{embedded});
 
     cimgui.addCSourceFiles(imgui_src, imgui_flags);
 
     if (b.option(bool, "sdl", "use sdl backend") orelse true) {
         cimgui.addCSourceFile(.{ .file = .{ .path = "imgui/backends/imgui_impl_sdl2.cpp" }, .flags = imgui_flags });
-        if (false) {
-            cimgui.linkLibrary(SDL2.artifact("SDL2"));
-            cimgui.addIncludePath(.{
-                .path = LazyPath.getPath(.{ .path = "include" }, SDL2.builder),
-            });
-        } else {
-            cimgui.linkSystemLibrary("SDL2");
+        cimgui.linkSystemLibrary("SDL2");
+        if (embedded) {
             cimgui.linkSystemLibrary("GLESv2");
+        } else {
+            // switch (target.getOsTag()) {
+            //     .linux => cimgui.linkSystemLibrary("GL"),
+            //     .macos => {
+            //         // cimgui.linkFramework("CoreGraphics");
+            //     },
+            //     else => @panic("unsupported os"),
+            // }
         }
     }
     if (b.option(bool, "opengl", "use opengl backend") orelse true) {
@@ -55,7 +60,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // examples
-    if (b.option(bool, "examples", "Build examples") orelse true) {
+    if (b.option(bool, "examples", "Build examples") orelse false) {
         const sdl_exe = b.addExecutable(.{
             .name = "sdl2_opengl3",
             .target = target,
