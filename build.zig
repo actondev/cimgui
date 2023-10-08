@@ -16,6 +16,7 @@ pub fn build(b: *std.Build) void {
     cimgui.linkLibCpp();
 
     const embedded = b.option(bool, "embedded", "Compile for embedded (eg anbernic)") orelse false;
+    const sdl_dynamic = b.option(bool, "sdl2_dynamic", "Dynamically link SDL2") orelse embedded;
 
     const imgui_flags = if (embedded)
         &[_][]const u8{
@@ -36,23 +37,23 @@ pub fn build(b: *std.Build) void {
         "imgui/imgui_widgets.cpp",
     };
 
-    std.debug.print("here embed: {}\n", .{embedded});
-
     cimgui.addCSourceFiles(imgui_src, imgui_flags);
 
     if (b.option(bool, "sdl", "use sdl backend") orelse true) {
         cimgui.addCSourceFile(.{ .file = .{ .path = "imgui/backends/imgui_impl_sdl2.cpp" }, .flags = imgui_flags });
-        cimgui.linkSystemLibrary("SDL2");
         if (embedded) {
             cimgui.linkSystemLibrary("GLESv2");
+        }
+
+        if (sdl_dynamic) {
+            cimgui.linkSystemLibrary("SDL2");
         } else {
-            // switch (target.getOsTag()) {
-            //     .linux => cimgui.linkSystemLibrary("GL"),
-            //     .macos => {
-            //         // cimgui.linkFramework("CoreGraphics");
-            //     },
-            //     else => @panic("unsupported os"),
-            // }
+            const SDL2 = b.dependency("SDL2", .{
+                .target = target,
+                .optimize = optimize,
+            });
+
+            cimgui.linkLibrary(SDL2.artifact("SDL2"));
         }
     }
     if (b.option(bool, "opengl", "use opengl backend") orelse true) {
